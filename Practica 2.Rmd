@@ -1,0 +1,564 @@
+---
+title: 'Práctica 2: Limpieza y validación de los datos'
+author: "Alberto Bayón Valtierra / Elena Ruiz Martinez"
+date: '`r format(Sys.Date(),"%e de %B %Y")`'
+output:
+  html_document:
+    df_print: default
+    number_sections: yes
+    toc: yes
+    toc_depth: 2
+    toc_float: yes
+  pdf_document:
+    number_sections: yes
+    toc: yes
+    toc_depth: 2
+lang: es   
+---
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load_libraries, include=FALSE}
+library(knitr)
+library(dplyr)
+library(arules)
+library(ggplot2)
+library(pROC)
+library(ggpubr)
+library(gridExtra)
+library(corrplot)
+library(rminer)
+library(caret)
+```
+
+****
+# Descripción del dataset
+****
+El conjunto de datos objeto de análisis se ha obtenido a partir de el siguiente enlace en Kaggle: https://www.kaggle.com/uciml/student-alcohol-consumption. Partimos de dos archivos .csv: **"student-por.csv"** que contienen los datos obtenidos de una encuesta hecha a estudiantes de lengua portuguesa de dos escuela de secundaria: Gabriel Pereira y Mousinho da Silveira. Estos datos contienen mucha información social, de género y de estudio sobre los estudiantes. Nos podríamos preguntar como de influyentes son los diferentes factores sociales sobre la calificación de los estudiantes y si podríamos predecir la calificación final del alumno a partir de esta información.
+
+El dataset está formado por 33 atributos (columnas) y 649 alumnos(filas o registros). Entre los atributos de este conjunto de datos, encontramos los siguientes:  
+
+- **school**: escuela de secundaria (binario: 'GP' - Gabriel Pereira o 'MS' - Mousinho da Silveira)  
+- **sex**: sexo del estudiante (binario: 'F' - femenino o 'M' - masculino)  
+- **age**: edad del estudiante (numérico: de 15 a 22)    
+- **address**: tipo de domicilio del estudiante (binario: 'U' - urbano o 'R' - rural)  
+- **famsize**: tamaño de la familia (binario: 'LE3' - menor o igual a 3 o 'GT3' - mayor que 3)  
+- **Pstatus**: estado de convivencia de los padres (binario: 'T' - viviendo juntos o 'A' - separados)  
+- **Medu**: educación de la madre (numérico: 0 - ninguna, 1 - educación primaria (4º grado), 2 - 5th to 9th grade, 3 - secondary education or 4 - higher education)  
+- **Fedu**: educación del padre (numérico: 0 - ninguna, 1 - educación primaria (4º grado), 2 - 5th to 9th grade, 3 - secondary education or 4 - higher education)    
+- **Mjob**: trabajo de la madre (nominal: 'teacher', 'health' relacionado con el cuidado, civil 'services' (por ejemplo, administrativo o policial), 'at_home' o 'other')  
+- **Fjob**: trabajo del padre (nominal: 'teacher', 'health' relacionado con el cuidado, civil 'services' (por ejemplo, administrativo o policial), 'at_home' o 'other')  
+- **reason**: razón para elegir esta escuela (nominal: 'home' cerca de casa, 'reputation' reputacion de la escuela, 'course' preferencia de curso o 'other') - **guardian**: tutor del estudiante (nominal: 'mother', 'father' or 'other')  
+- **traveltime**: tiempo de viaje de la casa a la escuela (numérico: 1 - <15 min., 2 - 15 a 30 min., 3 - 30 min. a 1 hora, o 4 - >1 hora)  
+- **studytime**: tiempo de estudio semanal (numérico: 1 - <2 horas, 2 - 2 a 5 horas, 3 - 5 a 10 horas, o 4 - >10 horas)  
+- **failures**: número de faltas a clase (numérico: n si 1<=n<3, sino 4)  
+- **schoolsup**: apoyo educativo extra (binario: yes o no)  
+- **famsup**: apoyo educativo familiar (binario: yes o no)  
+- **paid**: clases extra pagadas dentro de la materia del curso (matemáticas o portugués) (binario: yes o no)  
+- **activities**: actividades extracurriculares (binario: yes o no)  
+- **nursery**: si fué a la guardería (binario: yes o no)  
+- **higher**: quiere hacer educación superior (binario: yes o no)  
+- **internet**: acceso a Internet en casa (binario: yes o no)  
+- **romantic**: con una relación romántica (binario: yes o no)  
+- **famrel**: calidad de las relaciones familiares (numérico: desde 1 - muy mala a 5 - excelente)  
+- **freetime**: tiempo libre después de la escuela (numérico: desde 1 - muy poco tiempo a 5 - mucho tiempo)  
+- **goout**: salir con amigos (numérico: desde 1 - muy bajo a 5 - muy alto)  
+- **Dalc**: consumo de alcohol durante la jornada laboral (numérico: de 1 - muy bajo a 5 - muy alto)  
+- **Walc**: consumo de alcohol durante el fin de semana (numérico: de 1 - muy bajo a 5 - muy alto)   
+- **health**: estado de salud actual (numérico: de 1 - muy malo a 5 - muy bueno)  
+- **absences**: Número de ausencias escolares (numérico: de 0 a 93) 
+
+- **G1** - calificación primer grado (numérico: de 0 a 20)  
+- **G2** - calificación segundo grado (numérico: de 0 a 20)  
+- **G3** - calificación final (numérico: de 0 a 20, target)  
+
+
+Cargamos el datasets  
+
+```{r lectura, echo=TRUE}
+# Cargamos los datos de los estudiantes de portugués
+alumnos=read.csv("student-por.csv")
+```
+
+Con el siguiente comando se observa el tamaño del dataset: 649 alumnos que participan en la encuesta y 33 atributos que sirven para caracterizar a los alumnos.
+
+```{r , echo=TRUE}
+# Dimensiones del dataset 
+dim(alumnos)
+```
+
+Como parte final de este apartado se inluye un resumen por columnas con el valor mínimo, la media, la mediana, el valor máximo, el primer y el tercer cuartiles para los datos numéricos. Y en el caso de los datos de tipos cualitativos indica la cardinalidad de cada uno de los valores.
+```{r table}
+options(knitr.kable.NA = '')
+kable(summary(alumnos), caption='Resumen del dataset "alumnos')
+```
+
+****
+# Integración y selección de los datos
+****
+
+Comprobamos qué tipo de datos contiene cada atributo.
+
+```{r , echo=TRUE}
+# Tipo de dato asignado a cada campo
+res <- sapply(alumnos,class)
+kable(data.frame(atributo=names(res),clase=as.vector(res)))
+```
+
+Excepto: age, absences, G1, G2 y G3 (que son variables cuantitativas discretas), todos las demás variables deberían de ser de tipo "factor" (cualitativas), así que transformamos todas aquellas con la clase incorrecta a tipo "factor":
+
+```{r , echo=TRUE}
+#alumnos$subject <- as.factor(alumnos$subject)
+variables_erroneas<-c("Medu", "Fedu", "traveltime", "studytime", "failures", "famrel", "freetime", "goout", "Dalc", "Walc", "health")
+alumnos[variables_erroneas] <- lapply(alumnos[variables_erroneas], function(x) as.factor(x))
+
+res <- sapply(alumnos,class)
+kable(data.frame(atributo=names(res),clase=as.vector(res)))
+```
+
+****  
+# Limpieza de los datos  
+****
+
+## Valores nulos  
+Comprobamos si tenemos valores nulos para cada uno de los atríbutos
+
+```{r , echo=TRUE}
+# Números de valores desconocidos por campo
+sapply(alumnos, function(x) sum(is.na(x)))
+```
+Como podemos observar ninguna de las variables contiene valores nulos.
+
+## Valores ceros
+Hacemos un análisis de los ceros que aparecen en cada una de las columnas
+
+```{r , echo=TRUE}
+# Números de valores desconocidos por campo
+kable(colSums(alumnos==0))
+```
+
+De acuerdo con los resultados obtenidos, las columnas con pocos valores son susceptibles de ser valores perdidos. Vamos a analizar cada uno de ellos.
+
+Los campos Medu y Fedu hacen referencia a la educación del padre y de la madre. El valor 0 tiene el significado de no poseer ningún nivel de educación. De 649 muestras obtener 6 y 7 casos de madres y padres sin educacón es un dato razonable que no tiene porqué ser una valor perdido.
+
+En el caso de los campos G1, G2 y G3 ser corresponde a valores numéricos (de 0 a 20) de 3 notas diferentes obtenidas por un alumno. Los datos de las tres notas con valor cero (1, 7 y 15 respectivamente) forman parte de la normalidad de los resultados por lo que no se pueden considerar tampoco como valores perdidos.
+
+## Valores extremos 
+Veamos si existen valores extremos entre las variables cuantitativas.  
+
+```{r , echo=TRUE}
+
+for (i in 1:ncol(alumnos)) {
+  if (is.integer(alumnos[,i])) {
+    extreme<-boxplot(alumnos[names(alumnos[i])],main=names(alumnos[i]))
+    cat(names(alumnos[i])) 
+    cat(": ")
+    cat(extreme$out)
+    cat("\n")
+  }
+}
+```
+
+Tanto los datos correspondientes a las edades, a las notas, como a las ausencias a clase, comprobamos que son valores que perfectamente pueden darse. Es por ello que el manejo de estos valores extremos consistirá en simplemente dejarlos como actualmente están recogidos.
+
+****
+# Análisis de los datos
+****
+
+## Análisis estadístico descriptivo   
+
+A continuación veamos un breve estudio estadístico descriptivo de los datos con los que vamos a trabajar.   
+ 
+```{r , echo=TRUE}
+options(knitr.kable.NA = '')
+kable(summary(alumnos))
+```
+
+Vamos a representar mediante histogramas la nota final 'G3.'
+
+```{r , echo=TRUE}
+ggplot(alumnos, aes(alumnos$G3)) + geom_bar(colour="black", fill="blue", alpha=.5, stat="count") + guides(fill=FALSE)  + xlab("nota") + ylab("alumnos") + ggtitle("Cantidad de alumnos por nota")
+```
+
+## Análisis estadístico inferencial     
+
+### Normalidad
+
+La normalidad se puede comprobar de un modo visual mediante gráficos de densidad o gráficos Q-Q
+
+Utilizamos en primer lugar los gráficos de densidad
+```{r , echo=TRUE}
+densityAge <- ggdensity(alumnos$age, 
+           main = "Gráfico de densidad de Age",
+           xlab = "Age")
+
+densityAbsence <- ggdensity(alumnos$absence, 
+           main = "Gráfico de densidad de Absence",
+           xlab = "Absence")
+
+densityG1 <- ggdensity(alumnos$G1, 
+           main = "Gráfico de densidad de G1",
+           xlab = "G1")
+
+densityG2 <- ggdensity(alumnos$G2, 
+           main = "Gráfico de densidad de G2",
+           xlab = "G2")
+
+densityG3 <- ggdensity(alumnos$G3, 
+           main = "Gráfico de densidad de G3",
+           xlab = "G3")
+
+grid.arrange(densityAge,densityAbsence,densityG1,densityG2, densityG3, ncol=2)
+```
+
+Viendo las gráficas de densidad parece que siguen una distribución normal las variables G1, G2 y G3
+
+Y a continuación los gráfcos Q-Q
+
+```{r , echo=TRUE}
+qqAge <- ggqqplot(alumnos$age, main="Gráfigo Q-Q para Age", xlab = "Age")
+
+qqAbsences <- ggqqplot(alumnos$absences, main="Gráfigo Q-Q para Absences", xlab = "Absences")
+
+qqG1 <- ggqqplot(alumnos$G1, main="Gráfigo Q-Q para G1", xlab = "G1")
+
+qqG2 <- ggqqplot(alumnos$G2, main="Gráfigo Q-Q para G2", xlab = "G2")
+
+qqG3 <- ggqqplot(alumnos$G3, main="Gráfigo Q-Q para G2", xlab = "G3")
+
+grid.arrange(qqAge,qqAbsences,qqG1,qqG2, qqG3, ncol=2)
+
+
+```
+
+En este caso visualmente es más confuso determinar las variables que siguen la distriución normal, aunque da la impresión nuevamente que son las variables de las notas.
+
+Sin embargo una de las formas más fiables de comprobar la normalidad es aplicar el test de Shapiro - Wilk para cada una de las variables.
+
+```{r , echo=TRUE}
+shapiro.test(alumnos$age)
+
+shapiro.test(alumnos$absences)
+
+shapiro.test(alumnos$G1)
+
+shapiro.test(alumnos$G2)
+
+shapiro.test(alumnos$G3)
+```
+
+El test dice que si p-value es menor que 0,05 entonces no se considera que la variable siga una distribución normal. El resultado de todas ellas ha sido demasiado pequeño, por lo que se descarta su normalidad.
+
+### Homogeneidad
+
+Se va a estudiar la homogeneidad de varianzas mediante el test de Fligner-Kileen. Como nuestro estudio se basa en la influencia de las diferentes variables sobre las notas finales de cada alumno (sobre G3), nos centraremos en analizar esta variable númerica sobre cada uno de los atributos categóricos. En los siguientes tests, la hipótesis nula consiste en que ambas varianzas son iguales.
+
+```{r , echo=TRUE}
+
+fligner.test(G3 ~ school, data = alumnos)
+fligner.test(G3 ~ sex, data = alumnos)
+fligner.test(G3 ~ address, data = alumnos)
+fligner.test(G3 ~ famsize, data = alumnos)
+fligner.test(G3 ~ Pstatus, data = alumnos)
+fligner.test(G3 ~ Medu, data = alumnos)
+fligner.test(G3 ~ Fedu, data = alumnos)
+fligner.test(G3 ~ Mjob, data = alumnos)
+fligner.test(G3 ~ Fjob, data = alumnos)
+fligner.test(G3 ~ reason, data = alumnos)
+fligner.test(G3 ~ guardian, data = alumnos)
+fligner.test(G3 ~ traveltime, data = alumnos)
+fligner.test(G3 ~ studytime, data = alumnos)
+fligner.test(G3 ~ failures, data = alumnos)
+fligner.test(G3 ~ schoolsup, data = alumnos)
+fligner.test(G3 ~ famsup, data = alumnos)
+fligner.test(G3 ~ paid, data = alumnos)
+fligner.test(G3 ~ activities, data = alumnos)
+fligner.test(G3 ~ nursery, data = alumnos)
+fligner.test(G3 ~ higher, data = alumnos)
+fligner.test(G3 ~ internet, data = alumnos)
+fligner.test(G3 ~ romantic, data = alumnos)
+fligner.test(G3 ~ famrel, data = alumnos)
+fligner.test(G3 ~ freetime, data = alumnos)
+fligner.test(G3 ~ goout, data = alumnos)
+fligner.test(G3 ~ Dalc, data = alumnos)
+fligner.test(G3 ~ Walc, data = alumnos)
+fligner.test(G3 ~ health, data = alumnos)
+```
+
+El valor obtenido de p-value sobre las variables `school, guardian, schoolsup y higher` son inferiores a 0,05 por lo que se puede considerar la hipótesis nula como no válida y por lo tanto que las varianzas de estas muestras sobre G3 no son homogéneas. Para el resto de variables categóricas se muestra un p-value superior a 0.05, asi que aceptamos las hipotesis nula de que las varianzas son iguales.
+
+### Correlación
+
+Comprobamos la correlación entre las variables numéricas. Puesto que no siguen una distribución normal en lugar de aplicar el metodo Pearson que es el que se usa por defecto con la función cor de R, vamos a aplicar el método de Spearman.
+
+```{r , echo=TRUE}
+# 
+columnas_numericas<- sapply(alumnos, is.numeric)
+correlacion<-cor(alumnos[,columnas_numericas], method = "spearman")
+kable(correlacion)
+```
+
+Gráficamente se puede ver en el siguiente diagrama
+
+```{r , echo=TRUE}
+corrplot(correlacion)
+```
+
+Vemos que las variables G2 y G3 tienen una alta correlación: 0.94, seguido de G1 y G2 con una correlación de 0.89 y G1 con G3 de 0,88. Tiene toda su lógica, ya que G3 corresponde a la nota final del curso. Como las tres variables tienen un agran correlación, eliminaremos los campos correspondientes a G1 y G2 y nos quedaremos unicamente con G3, ya que para el estudio que queremos hacer los otros datos nos son irrelevantes.
+
+```{r , echo=TRUE}
+alumnos<- select(alumnos, -G1, -G2)
+```
+
+## Pruebas estadísticas  
+
+### Pruebas por contraste de hipótesis  
+
+Puesto que G3 no seguía una distribución normal, usaremos pruebas no paramétricas para hacer diferentes contrastes de hipótesis sobre G3.
+
+Para las variables que tienen dos clases: `school, sex, address, famsize, Pstatus, schoolsup, famsup, paid, activities, nursery, higher, internet y romantic`, utilizaremos comparaciones entre dos grupos de datos aplicando las pruebas de Wilcoxon. La hipótesis nula asume que las distribuciones de los grupos de datos son las mismas, por lo tanto para p-value inferior a 0.05 se rechazará la hipótesis nula y se concluirá que existen diferencias estadísticamente significativas entre los grupos de datos analizados.
+
+```{r , echo=TRUE}
+wilcox.test(G3 ~ school, data = alumnos)
+wilcox.test(G3 ~ sex, data = alumnos)
+wilcox.test(G3 ~ address, data = alumnos)
+wilcox.test(G3 ~ famsize, data = alumnos)
+wilcox.test(G3 ~ Pstatus, data = alumnos)
+wilcox.test(G3 ~ schoolsup, data = alumnos)
+wilcox.test(G3 ~ famsup, data = alumnos)
+wilcox.test(G3 ~ paid, data = alumnos)
+wilcox.test(G3 ~ activities, data = alumnos)
+wilcox.test(G3 ~ nursery, data = alumnos)
+wilcox.test(G3 ~ higher, data = alumnos)
+wilcox.test(G3 ~ internet, data = alumnos)
+wilcox.test(G3 ~ romantic, data = alumnos)
+```
+Según los resultados podemos decir que hay diferencias significativas en las notas entre :
+- los alumnos de cada una de las escuelas (school)
+- los alumnos de sexo femenino y masculino (sex)
+- los alumnos que viven en una zona rural o urbana (address)
+- los alumnos que tienen un apoyo eductaivo extra y los que no lo tienen (schoolsup)
+- los alumnos que hacen actividades extracurriculares y los que no las hacen (activities)
+- los alumnos que quieren hacer educación superior y los que no (higher)
+- los alumnos que tienen internet en casa y lo que no tienen internet (internet)
+
+Para las variables que tienen más de dos clases: `Medu, Fedu, Mjob, Fjob, reason, guardian, traveltime, studytime, failures, famrel, freetime, goout, Dalc, Walc y health`, utilizaremos comparaciones entre más de dos grupos de datos aplicando el test de Kruskal-Wallis.
+
+```{r , echo=TRUE}
+
+kruskal.test(G3 ~ Medu, data = alumnos)
+kruskal.test(G3 ~ Fedu, data = alumnos)
+kruskal.test(G3 ~ Mjob, data = alumnos)
+kruskal.test(G3 ~ Fjob, data = alumnos)
+kruskal.test(G3 ~ reason, data = alumnos)
+kruskal.test(G3 ~ guardian, data = alumnos)
+kruskal.test(G3 ~ traveltime, data = alumnos)
+kruskal.test(G3 ~ studytime, data = alumnos)
+kruskal.test(G3 ~ failures, data = alumnos)
+kruskal.test(G3 ~ famrel, data = alumnos)
+kruskal.test(G3 ~ freetime, data = alumnos)
+kruskal.test(G3 ~ goout, data = alumnos)
+kruskal.test(G3 ~ Dalc, data = alumnos)
+kruskal.test(G3 ~ Walc, data = alumnos)
+kruskal.test(G3 ~ health, data = alumnos)
+
+```
+Dado que el p-valor obtenido es menor al nivel de significancia , se puede concluir que las notas G3 muestran diferencias significativas para las diferentes clases de las variables categoricas analizadas. Es decir, las variables : `Medu, Fedu, Mjob, Fjob, reason, guardian, traveltime, studytime, failures, famrel, freetime, goout, Dalc, Walc y health` tienen un peso significativo en las notas finales.
+
+Como tenemos muchas variables en nuestro conjunto de datos, nos quedaremos con aquellas más significativas, aquellas que hemos obtenido un p-value inferior y y eliminamos las menos significativas.
+
+```{r , echo=TRUE}
+# Seleccionamos las variables que nos interesan. 
+alumnos1<- alumnos[,c("school", "sex", "address", "schoolsup", "higher", "internet", "Medu", "Fedu", "Mjob", "reason","studytime","failures","Dalc","Walc","G3")]
+```
+
+###Modelo de regresión lineal múltiple (regresores cuantitativos y cualitativos) 
+Estimaremos por mínimos cuadrados ordinarios un modelo lineal que explique la nota final (G3) de un individuo en función de todas las variables. 
+
+Para la futura evaluación del modelo, querremos dividir el conjunto de datos en un conjunto de entrenamiento y un conjunto de prueba. El conjunto de entrenamiento es el subconjunto del conjunto original de datos utilizado para construir un primer modelo; y el conjunto de prueba, el subconjunto del conjunto original de datos utilizado para evaluar la calidad del modelo.
+
+Lo más correcto será utilizar un conjunto de datos de entrenamiento diferente del de prueba. Se utilizarán 2/3 para el conjunto de entrenamiento y 1/3, para el conjunto de prueba.
+
+```{r , echo=TRUE}
+
+# Se crean los conjuntos de pruebas y de entrenamiento con 2/3 de los elementos
+set.seed(666) 
+indexes = sample(1:nrow(alumnos1), size=floor((2/3)*nrow(alumnos1)))
+train<-alumnos1[indexes,]
+test<-alumnos1[-indexes,]
+```
+
+
+```{r , echo=TRUE}
+# Creamos el modelo de regresion lineal con los datos de entrenamiento
+modelo1<- lm(G3~., data=train )
+summary(modelo1)
+
+#Se aplican a los datos de TEST para realizar predicción y medir la precisión del modelo
+predict_log <- predict(modelo1,newdata=test,type="response")
+predict_log <- round(predict_log)
+
+# Veamos una tabla con las 20 primeras notas predichas por el modelo comparadas con la nota real
+tabla_predicciones<-data.frame(nota_predicha=predict_log,nota_real=test$G3)
+kable(tabla_predicciones[0:10,])
+
+```
+
+El coeficiente de determinación del modelo es muy bajo, por lo tanto una predicción muy ineficiente (siendo R-squared una medida de calidad del modelo que toma valores entre 0 y 1). 
+
+Por otra parte, han sido significativos los test parciales sobre los coeficientes de los regresores: schoolMS, failures1, failures2, failures3, higheryes y goout2.
+
+Aunque hayamos obtenido una predicción muy ineficiente, si nos fijamos en la tabla, parece que se ha acercado bastante al valor real de la nota, así que aunque la predicción del modelo no sea exacta, podemos decir que se aproxima bastante.
+
+
+En vez de querer predecir la nota, probemos ahora en predecir si un alumno aprueba o suspende en función de todas las variables, para ello urilizaremos un modelo de regresión logística:
+
+
+###Modelo de regresión logística   
+
+Para evaluar esta probabilidad se aplicará un modelo de regresión logística, donde la variable depediente será una variable binaria que indicará si el alumno ha aprobado o no la asignatura.
+
+El primer paso será crear una variable binaria (aprobado) que indique la condición de aprobado (aprobado = 1) o no aprobado (aprobado = 0). Estimar el modelo de regresión logística donde la variable dependiente es "aprobado" y las explicativas son todas las variables del dataset excepto las correspondientes a las notas.
+
+
+```{r , echo=TRUE}
+# Clasificación binaria del atributo G3 en aprobados o no aprobados
+alumnos1$aprobado <- as.factor(ifelse(alumnos1$G3>9,1,0))
+
+# Mostramos la cantidad de alumnos aprobados y suspendidos
+table(alumnos1$aprobado)
+
+# Eliminamos del dataset la variable correspondiente a las notas finales G3. 
+alumnos2<- select(alumnos1, -G3)
+```
+Vamos a representar mediante histogramas la cantidad de alumnos aprobados y no aprobados
+
+```{r , echo=TRUE}
+ggplot(alumnos2, aes(alumnos2$aprobado)) + geom_bar(colour="black", fill="blue", alpha=.5, stat="count") + guides(fill=FALSE)  + xlab("no aprobados(0), aprobados(1)") + ylab("alumnos") + ggtitle("Cantidad de alumnos aprobados y no aprobados")
+```
+Dividimos los datos en un conjunto de entrenamiento y conjunto de prueba.
+
+```{r , echo=TRUE}
+set.seed(666) 
+
+# Mediante "stratified" nos aseguramos tener la misma proporción en las clases del conjunto de entrenamiento como en el de prueba.
+h2<-holdout(alumnos2$aprobado,ratio=2/3,mode="stratified")
+data_train<-alumnos2[h2$tr,]
+data_test<-alumnos2[h2$ts,]
+
+# Visualizamos las proporciones de cada conjunto de datos
+print((prop.table(table(data_train$aprobado))*100)%>% round(digits = 2))
+print((prop.table(table(data_test$aprobado))*100)%>% round(digits = 2))
+```
+Observamos que la proporción de aprobados y no aprobados para el conjunto de entrenamiento y el de prueba es practicamente igual.
+
+```{r , echo=TRUE}
+# Estimamos el modelo
+modelo2 =glm(aprobado~., family=binomial, data=data_train)
+summary(modelo2)
+
+#Se aplican a los datos de TEST para realizar predicción y medir la precisión del modelo
+predict_log2 <- predict(modelo2, newdata=data_test,type="response")
+predict_log2 <- round(predict_log2)
+
+```
+Asumiendo como nivel de significancia a 0.05, todas aquellas variable con un p-valor inferior serán las más significativas. A continuación mostramos cuáles han sido:
+
+```{r , echo=TRUE}
+sel <- which(summary(modelo2)$coefficients[-1,4] < 0.05)
+names(sel)
+```
+
+En este caso, la bondad del modelo se evaluará mediante la medida AIC. Dado que esta medida tiene en cuenta tanto la bondad del ajuste como la complejidad del modelo, cuando se comparen varios modelos candidatos, se seleccionará aquel que resulte en el menor AIC.
+
+Compararemos el modelo con uno que utilize menos variables para comprobar si mejoramos el AIC.
+
+```{r , echo=TRUE}
+# Estimamos el modelo
+modelo3 <-glm(aprobado~school+schoolsup+higher+failures+Dalc, family=binomial, data=data_train)
+summary(modelo3)
+```
+
+Utilizando unicamente las variables `school, schoolsup, higher, failures y Dalc` vemos que el AIC es inferior, con este modelo conseguiremos mejor bondad.
+
+**Calidad del ajuste **  
+
+Calcularemos la matriz de confusión del modelo que hemos obtenido con mejor AIC, suponiendo un umbral de discriminación del 70% observaremos cuantos falsos negativos y positivos.
+
+```{r , echo=TRUE}
+# Calculamos la probabilidad para cada muestra del conjunto de prueba
+prob_aprobado<- predict(modelo3, type = 'response', newdata=data_test)
+
+# Si la probabilidad de aprobar es superior al 70% le asignamos la clase 1, si no le asignamos clase 0.
+pred_aprobado <- ifelse(prob_aprobado > 0.7, 1, 0)
+pred_aprobado <- factor(pred_aprobado, levels = c("0", "1"))
+
+# Calculamos la matriz de confusión
+confusionMatrix(pred_aprobado, data_test$aprobado)
+
+# Mostramos la precisión del modelo
+confusionMatrix(pred_aprobado, data_test$aprobado)$overall[1]
+```
+
+Hay 23 falsos negativos. Corresponden a alumnos que han aprobado pero el modelo ha predicho que su probabilidad de ser aprobado es inferior a 0.7 y por lo tanto lo clasifica como "no aprobado".
+
+Hay 18 falsos positivos. Corresponden a alumnos "no aprobados", pero el modelo ha predicho que su probabilidad de ser aprobado es superior a 0.7 y por lo tanto los clasifica como "no aprobado".
+
+La precisión del modelo es de un 81%, no está nada mal, aunque seguramente estudiando otros modelos y utilizando otro tipo de entrenamiento podríamos conseguir mejores resultados.
+
+**Curva ROC**
+
+Realizaremos el dibujo de la curva ROC para representar la calidad del modelo predictivo obtenido. También calcularemos el AUROC, que nos proporciona información sobre la calidad del modelo, siendo menos preciso a medida que el AUC se acerca a 0.5 y mostrando una exactitud perfecta cuando es 1.
+
+```{r , echo=TRUE}
+g=roc(as.numeric(data_test$aprobado), prob_aprobado, data=data_test)
+plot(g)
+auc(g)
+```
+
+AUROC es `r round(auc(g),3)`.
+
+El modelo logístico tiene un poder predictivo bastante bueno,  ya que tiene un AUROC elevado, `r round(auc(g),3)`. 
+
+****
+# Representación de los resultados  
+****
+Además de las diferentes representaciones a partir de tablas y gráficos hechas a lo largo de la práctica, vamos a representar graficamente las 5 variables que hemos usado para el modelo3 (modelo de regresión logística) por ser las más significativas y con las que obteníamos mejor bondad en el modelo. Veremos la proporción de clases de cada una de las variables sobre nuesto target "aprobado"
+
+```{r , echo=TRUE}
+
+# Proporción de alumnos aprobados y no aprobados
+proporcion_aprobados<-round(prop.table(table(alumnos2$aprobado))*100)
+kable(proporcion_aprobados)
+
+# Graficamos
+barschool<-ggplot(data=alumnos2,aes(x=alumnos2$aprobado ,fill=schoolsup))+geom_bar()
+barschoolsup<-ggplot(data=alumnos2,aes(x=alumnos2$aprobado ,fill=school))+geom_bar()
+barhigher<-ggplot(data=alumnos2,aes(x=alumnos2$aprobado ,fill=higher))+geom_bar()
+barfailures<-ggplot(data=alumnos2,aes(x=alumnos2$aprobado ,fill=failures))+geom_bar()
+barDalc<-ggplot(data=alumnos2,aes(x=alumnos2$aprobado ,fill=Dalc))+geom_bar()
+grid.arrange(barschool,barschoolsup,barhigher,barfailures,barDalc)
+```
+ 
+
+****
+# Resolución del problema
+****
+
+A partir de los datos obtenidos de una encuesta hecha a estudiantes de lengua portuguesa de dos escuelas de secundaria, queríamos saber como de influyentes son los diferentes factores sociales sobre la calificación de los estudiantes y poder predecir la calificación final del alumno a partir de esta información.
+Para ello hemos llevado a cabo una serie de pruebas estadísticas que nos han ayudado a obtener la información que estabamos buscando. A partir del análisis de correlación y el contraste de hipótesis nos ha permitido conocer cuáles de estas variables ejercen una mayor in???uencia sobre las notas, obteniendo las siguientes variables: `school, schoolsup, higher, failures y Dalc`. El modelo de regresión lineal obtenido nos ha permitido predecir la nota final del alumno; aunque hemos visto que la prediccion de la nota es muy ineficiente, hemos comprobado mediante una tabla que el valor de la nota predicha se acerca bastante al valor real (aunque no sea el valor exacto). Finalmente hemos categorizado las notas en "aprobados=1" y "no aprobados=0" y hemos utilizado un modelo de regresión logística para predecir los alumnos aprobados o no aprobados. Este modelo nos ha dado una precisión de la predicción del 81% de aciertos. Para finalizar hemos representado unos gráficos de las 5 variables más significantes para el modelo. A partir de la representación de los resultados podemos añadir que los alumnos aprobados representan un 85% de los alumnos encuestados con respecto el 15% de los alumnos que no han aprobado. Si nos fijamos en los gráficos podríamos decir que los alumnos aprobados se caracterizan por pertenecer mayoritariamente a la escuela de secundaria Gabriel Pereira (school=GP), no necesitar apoyo educativo (schoolsup=no), con intención de hacer estudios superiores (higher=yes), no haber faltado ninguna vez a clase (failures=0) y tener un consumo de alcohol diario muy bajo. 
+Hemos conseguido predecir, con una precisión bastante buena (81%) y un número de variables (5) basante inferior  al de los datos de origen (33) , qué alumnos aprobarán.
+
+
+****
+# Contribuciones
+****
+![](contribuciones_Practica2.png)
+
+
+
+

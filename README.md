@@ -12,4 +12,6 @@ Los actividad ha sido realizada en grupo por los siguientes miembros:
 * **Practica 2.pdf**: PDF con las respuestas planteadas en la práctica
 
 # Objetivos de la práctica
- Partimos del archivo .csv: **"student-por.csv"** que contienen los datos obtenidos de una encuesta hecha a estudiantes de lengua portuguesa de dos escuela de secundaria: Gabriel Pereira y Mousinho da Silveira. Estos datos contienen mucha información social, de género y de estudio sobre los estudiantes. Nos podríamos preguntar como de influyentes son los diferentes factores sociales sobre la calificación de los estudiantes y si podríamos predecir la calificación final del alumno a partir de esta información.
+ Partimos del archivo .csv: **"student-por.csv"** que contienen los datos obtenidos de una encuesta hecha a estudiantes de lengua portuguesa de dos escuela de secundaria: Gabriel Pereira y Mousinho da Silveira. Estos datos contienen mucha información social, de género y de estudio sobre los estudiantes. El objetivo de la práctica será la de aplicar una serie de tratamientos sobre los datos con tal de responder a la pregunta: como de influyentes son los diferentes factores sociales sobre las notas de los estudiantes? Además de predecir la calificación final del alumno a partir de esta información.
+
+.

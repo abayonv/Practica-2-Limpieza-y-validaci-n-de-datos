@@ -1,6 +1,3 @@
-# Descripcion
-El conjunto de datos que se generado en este trabajo contiene detalles sobre el consumo de carburante y emisiones de CO2 de los turismos nuevos que se comercializan en España. Esta información se ha recogido de la página web http://coches.idae.es que forma parte programa del Instituto para la Diversificación y Ahorro de Energía (IDAE), organismo adscrito al Ministerio para la Transición Ecológica.* 
-
 # Miembros del equipo
 Los actividad ha sido realizada en grupo por los siguientes miembros:
 * Elena Ruiz Martinez
